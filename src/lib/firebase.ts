@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import config from '../../firebase-applet-config.json';
 
 const firebaseConfig = {
@@ -17,10 +17,12 @@ let db: ReturnType<typeof getFirestore>;
 try {
   app = initializeApp(firebaseConfig);
   db = initializeFirestore(app, {
-    ignoreUndefinedProperties: true
+    ignoreUndefinedProperties: true,
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
   }, config.firestoreDatabaseId);
 } catch (error) {
   console.error("Error initializing Firebase:", error);
 }
 
 export { app, db };
+

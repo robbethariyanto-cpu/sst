@@ -2,21 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { ShoppingCart, Check, ChevronRight, Package2 } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Product } from '../types';
 
 export default function ProductDetail() {
   const { productId } = useParams();
-  const { products, categories, addToCart } = useAppContext();
+  const { categories, addToCart } = useAppContext();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [activeImage, setActiveImage] = useState<string | undefined>(undefined);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const product = products.find(p => p.id === productId);
-  
+  useEffect(() => {
+    if (!productId || !db) return;
+    
+    // Listen directly to the specific product document
+    const unsub = onSnapshot(doc(db, 'products', productId), (docSnap) => {
+      if (docSnap.exists()) {
+        const p = docSnap.data() as Product;
+        setProduct(p);
+      } else {
+        setProduct(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [productId]);
+
   useEffect(() => {
     if (product) {
       setActiveImage(product.images?.[0] || product.image);
     }
   }, [product]);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+        <h2 className="text-xl text-gray-500">Memuat produk...</h2>
+      </div>
+    );
+  }
 
   if (!product) {
     return (

@@ -6,7 +6,7 @@ import { Filter, Search } from 'lucide-react';
 
 export default function CategoryList() {
   const { categoryId } = useParams();
-  const { categories, products } = useAppContext();
+  const { categories, products, fetchNextProducts, hasMoreProducts } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('');
 
@@ -113,11 +113,23 @@ export default function CategoryList() {
         </div>
 
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+              {filteredProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            {hasMoreProducts && (
+              <div className="mt-12 flex justify-center">
+                <button 
+                  onClick={fetchNextProducts}
+                  className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                  Muat Lebih Banyak Produk
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
             <p className="text-gray-500 text-lg">Tidak ada produk yang sesuai dengan kriteria.</p>

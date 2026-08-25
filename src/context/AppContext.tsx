@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { collection, doc, setDoc, deleteDoc, getDoc, getDocs, onSnapshot, query, orderBy, limit, startAfter, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Category, Product, CartItem, StoreSettings, TrendInfo } from '../types';
 
@@ -23,7 +23,12 @@ interface AppContextType extends AppState {
   logoutAdmin: () => void;
   changeAdminPassword: (oldPassword: string, newPassword: string) => boolean;
   
+  fetchProducts: () => Promise<void>;
+  fetchNextProducts: () => Promise<void>;
+  hasMoreProducts: boolean;
+
   updateSettings: (settings: StoreSettings) => Promise<void>;
+
   
   addCategory: (category: Category) => Promise<void>;
   updateCategory: (category: Category) => Promise<void>;
@@ -65,55 +70,90 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasAdmin, setHasAdmin] = useState(false);
 
-  // Firestore Sync
+  const [lastVisibleProduct, setLastVisibleProduct] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+
+  const fetchProducts = useCallback(async () => {
+    if (!db) return;
+    try {
+      const q = query(collection(db, 'products'), orderBy('id', 'desc'), limit(20));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => doc.data() as Product);
+      // Optional: Since order is originally done in client, it's better to fetch by id descending for latest
+      // The sort logic the user had used `id` if order wasn't set.
+      setProducts(data);
+      if (snapshot.docs.length > 0) {
+        setLastVisibleProduct(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMoreProducts(snapshot.docs.length === 20);
+      } else {
+        setHasMoreProducts(false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products', error);
+    }
+  }, []);
+
+  const fetchNextProducts = useCallback(async () => {
+    if (!db || !lastVisibleProduct || !hasMoreProducts) return;
+    try {
+      const q = query(collection(db, 'products'), orderBy('id', 'desc'), startAfter(lastVisibleProduct), limit(20));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => doc.data() as Product);
+      setProducts(prev => [...prev, ...data]);
+      if (snapshot.docs.length > 0) {
+        setLastVisibleProduct(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMoreProducts(snapshot.docs.length === 20);
+      } else {
+        setHasMoreProducts(false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch next products', error);
+    }
+  }, [lastVisibleProduct, hasMoreProducts]);
+
+  // Initial Fetch
   useEffect(() => {
     if (!db) return;
 
-    // Settings
+    // Settings (keep onSnapshot for real-time updates for config, it's just 1 doc)
     const unsubSettings = onSnapshot(doc(db, 'settings', 'store'), (docSnap) => {
       if (docSnap.exists()) {
         setSettings(docSnap.data() as StoreSettings);
       }
     });
 
-    // Categories
-    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as Category);
-      data.sort((a, b) => {
-        if (typeof a.order === 'number' && typeof b.order === 'number') return a.order - b.order;
-        if (typeof a.order === 'number') return 1;
-        if (typeof b.order === 'number') return -1;
-        return Number(b.id) - Number(a.id);
-      });
-      setCategories(data);
-    });
+    const fetchInitialData = async () => {
+      try {
+        // Categories
+        const categoriesSnap = await getDocs(query(collection(db, 'categories'), limit(100)));
+        const catsData = categoriesSnap.docs.map(d => d.data() as Category);
+        catsData.sort((a, b) => {
+          if (typeof a.order === 'number' && typeof b.order === 'number') return a.order - b.order;
+          if (typeof a.order === 'number') return 1;
+          if (typeof b.order === 'number') return -1;
+          return Number(b.id) - Number(a.id);
+        });
+        setCategories(catsData);
 
-    // Products
-    const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as Product);
-      data.sort((a, b) => {
-        if (typeof a.order === 'number' && typeof b.order === 'number') return a.order - b.order;
-        if (typeof a.order === 'number') return 1;
-        if (typeof b.order === 'number') return -1;
-        return Number(b.id) - Number(a.id);
-      });
-      setProducts(data);
-    });
+        // Trends
+        const trendsSnap = await getDocs(query(collection(db, 'trends'), limit(50)));
+        const trendsData = trendsSnap.docs.map(d => d.data() as TrendInfo);
+        trendsData.sort((a, b) => Number(b.id) - Number(a.id));
+        setTrends(trendsData);
 
-    // Trends
-    const unsubTrends = onSnapshot(collection(db, 'trends'), (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as TrendInfo);
-      data.sort((a, b) => Number(b.id) - Number(a.id));
-      setTrends(data);
-    });
+        await fetchProducts();
+
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+
+    fetchInitialData();
 
     return () => {
       unsubSettings();
-      unsubCategories();
-      unsubProducts();
-      unsubTrends();
     };
-  }, []);
+  }, [fetchProducts]);
 
   // Load from local storage for cart and admin
   useEffect(() => {
@@ -269,6 +309,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       categories, products, cart, settings, trends, isAdmin, hasAdmin,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       loginAdmin, registerAdmin, logoutAdmin, changeAdminPassword, updateSettings,
+      fetchProducts, fetchNextProducts, hasMoreProducts,
       addCategory, updateCategory, deleteCategory, reorderCategories,
       addProduct, updateProduct, deleteProduct, reorderProducts,
       addTrend, updateTrend, deleteTrend

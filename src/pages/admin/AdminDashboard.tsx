@@ -11,7 +11,8 @@ export default function AdminDashboard() {
     isAdmin, logoutAdmin, settings, updateSettings,
     categories, addCategory, updateCategory, deleteCategory, reorderCategories,
     products, addProduct, updateProduct, deleteProduct, reorderProducts,
-    trends, addTrend, updateTrend, deleteTrend
+    trends, addTrend, updateTrend, deleteTrend,
+    fetchNextProducts, hasMoreProducts
   } = useAppContext();
   
   const navigate = useNavigate();
@@ -103,7 +104,7 @@ export default function AdminDashboard() {
         {activeTab === 'tampilan' && <TampilanSettings settings={settings} updateSettings={updateSettings} />}
         {activeTab === 'profil' && <ProfilManager settings={settings} updateSettings={updateSettings} />}
         {activeTab === 'kategori' && <KategoriManager categories={categories} addCategory={addCategory} updateCategory={updateCategory} deleteCategory={deleteCategory} reorderCategories={reorderCategories} />}
-        {activeTab === 'produk' && <ProdukManager products={products} categories={categories} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} reorderProducts={reorderProducts} />}
+        {activeTab === 'produk' && <ProdukManager products={products} categories={categories} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} reorderProducts={reorderProducts} fetchNextProducts={fetchNextProducts} hasMoreProducts={hasMoreProducts} />}
         {activeTab === 'trend' && <TrendManager trends={trends} addTrend={addTrend} updateTrend={updateTrend} deleteTrend={deleteTrend} />}
       </div>
     </div>
@@ -588,7 +589,7 @@ function KategoriManager({ categories, addCategory, updateCategory, deleteCatego
   );
 }
 
-function ProdukManager({ products, categories, addProduct, updateProduct, deleteProduct, reorderProducts }: any) {
+function ProdukManager({ products, categories, addProduct, updateProduct, deleteProduct, reorderProducts, fetchNextProducts, hasMoreProducts }: any) {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentProduct, setCurrentProduct] = useState<Partial<Product> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1194,6 +1195,16 @@ function ProdukManager({ products, categories, addProduct, updateProduct, delete
             )}
           </tbody>
         </table>
+        {hasMoreProducts && (
+          <div className="p-4 flex justify-center border-t border-gray-100">
+            <button 
+              onClick={fetchNextProducts}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+            >
+              Muat Lebih Banyak
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

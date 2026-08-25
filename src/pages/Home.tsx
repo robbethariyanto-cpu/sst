@@ -5,7 +5,7 @@ import ProductCard from '../components/ProductCard';
 import { ChevronLeft, ChevronRight, Zap, TrendingUp } from 'lucide-react';
 
 export default function Home() {
-  const { categories, products, settings, trends } = useAppContext();
+  const { categories, products, settings, trends, fetchNextProducts, hasMoreProducts } = useAppContext();
   const sliderRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || '';
@@ -149,11 +149,23 @@ export default function Home() {
           {searchQuery ? (
             /* Search Results View */
             filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                  {filteredProducts.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+                {hasMoreProducts && (
+                  <div className="mt-12 flex justify-center">
+                    <button 
+                      onClick={fetchNextProducts}
+                      className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                      Muat Lebih Banyak
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
                 <p className="text-gray-500 text-lg">Tidak ada produk yang ditemukan.</p>
