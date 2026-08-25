@@ -239,17 +239,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const addCategory = async (category: Category) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'categories', category.id), category); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'categories', category.id), category);
+      setCategories(prev => {
+        const newData = [...prev, category];
+        return newData.sort((a, b) => {
+          if (typeof a.order === 'number' && typeof b.order === 'number') return a.order - b.order;
+          if (typeof a.order === 'number') return 1;
+          if (typeof b.order === 'number') return -1;
+          return Number(b.id) - Number(a.id);
+        });
+      });
+    } catch(e) { console.warn(e); }
   };
 
   const updateCategory = async (category: Category) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'categories', category.id), category); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'categories', category.id), category);
+      setCategories(prev => prev.map(c => c.id === category.id ? category : c));
+    } catch(e) { console.warn(e); }
   };
 
   const deleteCategory = async (id: string) => {
     if (!db) return;
-    try { await deleteDoc(doc(db, 'categories', id)); } catch(e) { console.warn(e); }
+    try { 
+      await deleteDoc(doc(db, 'categories', id));
+      setCategories(prev => prev.filter(c => c.id !== id));
+    } catch(e) { console.warn(e); }
   };
 
   const reorderCategories = async (newCategories: Category[]) => {
@@ -260,22 +277,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return setDoc(doc(db, 'categories', c.id), updated);
       });
       await Promise.all(batch);
+      setCategories(newCategories.map((c, index) => ({ ...c, order: index })));
     } catch(e) { console.warn(e); }
   };
   
   const addProduct = async (product: Product) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'products', product.id), product); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'products', product.id), product);
+      await fetchProducts();
+    } catch(e) { console.warn(e); }
   };
 
   const updateProduct = async (product: Product) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'products', product.id), product); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'products', product.id), product);
+      await fetchProducts();
+    } catch(e) { console.warn(e); }
   };
 
   const deleteProduct = async (id: string) => {
     if (!db) return;
-    try { await deleteDoc(doc(db, 'products', id)); } catch(e) { console.warn(e); }
+    try { 
+      await deleteDoc(doc(db, 'products', id));
+      await fetchProducts();
+    } catch(e) { console.warn(e); }
   };
 
   const reorderProducts = async (newProducts: Product[]) => {
@@ -286,22 +313,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return setDoc(doc(db, 'products', p.id), updated);
       });
       await Promise.all(batch);
+      await fetchProducts();
     } catch(e) { console.warn(e); }
   };
   
   const addTrend = async (trend: TrendInfo) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'trends', trend.id), trend); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'trends', trend.id), trend);
+      setTrends(prev => {
+        const newData = [...prev, trend];
+        return newData.sort((a, b) => Number(b.id) - Number(a.id));
+      });
+    } catch(e) { console.warn(e); }
   };
 
   const updateTrend = async (trend: TrendInfo) => {
     if (!db) return;
-    try { await setDoc(doc(db, 'trends', trend.id), trend); } catch(e) { console.warn(e); }
+    try { 
+      await setDoc(doc(db, 'trends', trend.id), trend);
+      setTrends(prev => prev.map(t => t.id === trend.id ? trend : t));
+    } catch(e) { console.warn(e); }
   };
 
   const deleteTrend = async (id: string) => {
     if (!db) return;
-    try { await deleteDoc(doc(db, 'trends', id)); } catch(e) { console.warn(e); }
+    try { 
+      await deleteDoc(doc(db, 'trends', id));
+      setTrends(prev => prev.filter(t => t.id !== id));
+    } catch(e) { console.warn(e); }
   };
 
   return (
