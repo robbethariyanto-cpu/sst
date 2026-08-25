@@ -617,16 +617,21 @@ function ProdukManager({ products, categories, addProduct, updateProduct, delete
       try {
         const importedData = JSON.parse(event.target?.result as string);
         if (Array.isArray(importedData)) {
+          // Validate IDs
+          importedData.forEach((row, i) => {
+            if (!row.id) row.id = Date.now().toString() + Math.random().toString(36).substring(7);
+          });
+          
           if (confirm(`Apakah Anda yakin ingin mengimpor ${importedData.length} produk? Ini akan merubah data produk yang ada.`)) {
-            // Note: Idealnya ini memanggil batch dari AppContext. 
-            // Karena ini MVP, kita gunakan reorderProducts karena reorderProducts menyimpan seluruh array yang diberikan ke batch setDoc.
-            reorderProducts(importedData);
+            await reorderProducts(importedData);
             alert("Data berhasil diimpor! Silakan refresh halaman jika data tidak langsung muncul.");
           }
         }
       } catch (err) {
-        alert("Gagal mengimpor file: Format JSON tidak valid.");
+        console.error(err);
+        alert("Gagal mengimpor file: Format JSON tidak valid atau error server.");
       }
+      e.target.value = ''; // Reset input
     };
     reader.readAsText(file);
   };
@@ -658,7 +663,7 @@ function ProdukManager({ products, categories, addProduct, updateProduct, delete
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const csv = event.target?.result as string;
+        const csv = (event.target?.result as string).replace(/^\uFEFF/, '');
         const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(l => l);
         if (lines.length < 2) throw new Error("CSV kosong atau tidak valid");
         
@@ -687,6 +692,8 @@ function ProdukManager({ products, categories, addProduct, updateProduct, delete
           const row: any = {};
           headers.forEach((h, i) => { row[h] = rowValues[i]; });
           
+          if (!row.id) row.id = Date.now().toString() + Math.random().toString(36).substring(7);
+          
           if (row.price) row.price = Number(row.price);
           if (row.stock) row.stock = Number(row.stock);
           if (row.packingQuantity) row.packingQuantity = Number(row.packingQuantity);
@@ -700,12 +707,14 @@ function ProdukManager({ products, categories, addProduct, updateProduct, delete
         });
         
         if (confirm(`Apakah Anda yakin ingin mengimpor ${importedData.length} produk dari CSV? Ini akan merubah data produk yang ada.`)) {
-          reorderProducts(importedData);
+          await reorderProducts(importedData);
           alert("Data CSV berhasil diimpor!");
         }
       } catch (err) {
-        alert("Gagal mengimpor file: Format CSV tidak valid.");
+        console.error(err);
+        alert("Gagal mengimpor file: Format CSV tidak valid atau error pada server.");
       }
+      e.target.value = ''; // Reset input
     };
     reader.readAsText(file);
   };
